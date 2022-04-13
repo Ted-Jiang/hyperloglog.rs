@@ -105,8 +105,9 @@ registers_impls![5, Registers];
 // used by HyperLogLog++ implementation.
 //
 // Available only with std.
+//Align with Kylin: use 8 bit to store one hash
 #[cfg(feature = "std")]
-registers_impls![6, RegistersPlus];
+registers_impls![8, RegistersPlus];
 
 // An array containing all possible values used to calculate
 // the "raw" sum.

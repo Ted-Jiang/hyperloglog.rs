@@ -438,6 +438,17 @@ where
             _ => unreachable!(),
         }
     }
+
+    #[inline] // directly insert in one bucket a hash_value
+    pub fn insert_direct_reg(&mut self, bucket_num: usize, hash_value: u32) {
+        match self.registers.as_ref() {
+            None => {
+                self.registers = Some(RegistersPlus::with_count(self.counts.0));
+                self.registers.as_mut().unwrap().set_greater(bucket_num, hash_value)
+            }
+            Some(_) => { self.registers.as_mut().unwrap().set_greater(bucket_num, hash_value) }
+        }
+    }
 }
 
 impl<H, B> HyperLogLogCommon for HyperLogLogPlus<H, B>
