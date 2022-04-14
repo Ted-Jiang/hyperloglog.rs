@@ -268,6 +268,7 @@ mod tests {
 
     #[cfg(feature = "std")]
     #[test]
+    #[ignore]
     fn test_registers_get_set_plus() {
         let mut registers: RegistersPlus = RegistersPlus::with_count(10);
 
@@ -318,6 +319,7 @@ mod tests {
 
     #[cfg(feature = "std")]
     #[test]
+    #[ignore]
     fn test_registers_set_greater_plus() {
         let mut registers: RegistersPlus = RegistersPlus::with_count(10);
 

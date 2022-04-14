@@ -537,6 +537,68 @@ where
         }
     }
 }
+// avoid take mut in count for kylin
+impl <H, B> HyperLogLogPlus<H, B> where
+    H: Hash + ?Sized,
+    B: BuildHasher,
+{
+    #[allow(dead_code)]
+    pub fn estimate_count(&self) -> f64 {
+        match &self.registers {
+            None => {
+                println!("registers is None ");
+                // Calculate number of registers set to zero.
+                let zeros = self.counts.1 - self.sparse.count();
+
+                // Use linear counting to approximate.
+                Self::linear_count(self.counts.1, zeros)
+            }
+            Some(registers) => {
+                // We use normal representation.
+
+                let zeros = registers.zeros();
+
+                if zeros != 0 {
+                    println!("zeros != 0 ");
+                    let correction = Self::linear_count(self.counts.0, zeros);
+
+                    // Use linear counting only if value below threshold.
+                    if correction <= Self::threshold(self.precision) {
+                        return correction;
+                    } else {
+                        // Calculate the raw estimate.
+                        let mut raw = Self::estimate_raw_plus(
+                            registers.iter(),
+                            self.counts.0,
+                        );
+
+                        // Apply correction if required.
+                        if raw <= 5.0 * self.counts.0 as f64 {
+                            raw -= self.estimate_bias(raw);
+                        }
+
+                        return raw;
+                    }
+                } else {
+                    println!("zeros == 0 ");
+                    // Calculate the raw estimate.
+                    let mut raw = Self::estimate_raw_plus(
+                        registers.iter(),
+                        self.counts.0,
+                    );
+
+                    // Apply correction if required.
+                    if raw <= 5.0 * self.counts.0 as f64 {
+                        raw -= self.estimate_bias(raw);
+                    }
+
+                    raw
+                }
+
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
