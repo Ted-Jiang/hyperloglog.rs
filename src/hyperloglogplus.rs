@@ -559,7 +559,6 @@ impl <H, B> HyperLogLogPlus<H, B> where
                 let zeros = registers.zeros();
 
                 if zeros != 0 {
-                    println!("zeros != 0 ");
                     let correction = Self::linear_count(self.counts.0, zeros);
 
                     // Use linear counting only if value below threshold.
