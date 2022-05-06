@@ -579,7 +579,6 @@ impl <H, B> HyperLogLogPlus<H, B> where
                         return raw;
                     }
                 } else {
-                    println!("zeros == 0 ");
                     // Calculate the raw estimate.
                     let mut raw = Self::estimate_raw_plus(
                         registers.iter(),
