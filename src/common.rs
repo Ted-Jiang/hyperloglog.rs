@@ -125,8 +125,13 @@ macro_rules! rawlut_impls {
             let mut raw = [0.0; COUNT];
 
             let mut i = 0;
+            while i < COUNT && i < 128 {
+                raw[i] = 1.0 / (1u128 << i) as f64;
+                i += 1;
+            }
+
             while i < COUNT {
-                raw[i] = 1.0 / (1u64 << i) as f64;
+                raw[i] = raw[i-1] / 2.0 ;
                 i += 1;
             }
 
