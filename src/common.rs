@@ -107,7 +107,67 @@ registers_impls![5, Registers];
 // Available only with std.
 //Align with Kylin: use 8 bit to store one hash
 #[cfg(feature = "std")]
-registers_impls![8, RegistersPlus];
+//registers_impls![8, RegistersPlus];
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RegistersPlus {
+    // A buffer containing registers.
+    buf: Vec<u8>,
+    // The number of registers stored in buf.
+    count: usize,
+    // The number of registers set to zero.
+    zeros: usize,
+}
+
+impl RegistersPlus {
+
+    #[allow(dead_code)]
+    pub const SIZE: usize = 8;
+
+    // Creates a new Registers struct with capacity `count` registers.
+    pub fn with_count(count: usize) -> RegistersPlus {
+        RegistersPlus {
+            buf: vec![0; count],
+            count: count,
+            zeros: count,
+        }
+    }
+
+    #[inline] // Returns an iterator that emits Register values.
+    pub fn iter(&self) -> impl Iterator<Item=u8> + '_ {
+        self.buf.iter().map(|x| *x)
+    }
+
+    #[inline] // Returns the value of the Register at `index`.
+    #[allow(dead_code)]
+    pub fn get(&self, index: usize) -> u8 {
+        self.buf[index]
+    }
+
+    #[inline] // Sets the value of the Register at `index` to `value`,
+    // if `value` is greater than its current value.
+    pub fn set_greater(&mut self, index: usize, value: u8) {
+        let cur = self.buf[index];
+        if value > cur {
+            if cur == 0 {
+                self.zeros -= 1;
+                self.buf[index] = value;
+            } else {
+                self.buf[index] = value;
+            }
+        }
+    }
+
+    #[inline]
+    pub fn zeros(&self) -> usize {
+        self.zeros
+    }
+
+    #[inline] // Returns the size of the Registers in bytes
+    #[allow(dead_code)] // for a given number of Registers.
+    pub fn size_in_bytes(count: usize) -> usize {
+        count
+    }
+}
 
 // An array containing all possible values used to calculate
 // the "raw" sum.
@@ -150,12 +210,12 @@ rawlut_impls![RegistersPlus];
 // different HyperLogLog implementations.
 pub trait HyperLogLogCommon {
     #[inline] // Returns the "raw" HyperLogLog estimate as defined by
-              // P. Flajolet et al. for a given `precision`.
-              //
-              // Also returns the count of registers set to 0.
+    // P. Flajolet et al. for a given `precision`.
+    //
+    // Also returns the count of registers set to 0.
     fn estimate_raw<I>(registers: I, count: usize) -> (f64, usize)
-    where
-        I: Iterator<Item = u32>,
+        where
+            I: Iterator<Item=u32>,
     {
         let (mut raw, mut zeros) = (0.0, 0);
 
@@ -171,10 +231,10 @@ pub trait HyperLogLogCommon {
 
     #[cfg(not(feature = "const-loop"))]
     #[inline] // Returns the "raw" HyperLogLog estimate as defined by
-              // P. Flajolet et al. for a given `precision`.
+    // P. Flajolet et al. for a given `precision`.
     fn estimate_raw_plus<I>(registers: I, count: usize) -> f64
-    where
-        I: Iterator<Item = u32>,
+        where
+            I: Iterator<Item=u32>,
     {
         let raw: f64 = registers.map(|val| 1.0 / (1u64 << val) as f64).sum();
 
@@ -183,10 +243,34 @@ pub trait HyperLogLogCommon {
 
     #[cfg(feature = "const-loop")]
     #[inline] // Returns the "raw" HyperLogLog estimate as defined by
-              // P. Flajolet et al. for a given `precision`.
+    // P. Flajolet et al. for a given `precision`.
     fn estimate_raw_plus<I>(registers: I, count: usize) -> f64
-    where
-        I: Iterator<Item = u32>,
+        where
+            I: Iterator<Item=u32>,
+    {
+        let raw: f64 = registers.map(|val| RAW[val as usize]).sum();
+
+        Self::alpha(count) * (count * count) as f64 / raw
+    }
+
+    #[cfg(not(feature = "const-loop"))]
+    #[inline] // Returns the "raw" HyperLogLog estimate as defined by
+    // P. Flajolet et al. for a given `precision`.
+    fn estimate_raw_plus_u8<I>(registers: I, count: usize) -> f64
+        where
+            I: Iterator<Item=u8>,
+    {
+        let raw: f64 = registers.map(|val| 1.0 / (1u64 << val) as f64).sum();
+
+        Self::alpha(count) * (count * count) as f64 / raw
+    }
+
+    #[cfg(feature = "const-loop")]
+    #[inline] // Returns the "raw" HyperLogLog estimate as defined by
+    // P. Flajolet et al. for a given `precision`.
+    fn estimate_raw_plus_u8<I>(registers: I, count: usize) -> f64
+        where
+            I: Iterator<Item=u8>,
     {
         let raw: f64 = registers.map(|val| RAW[val as usize]).sum();
 
@@ -194,7 +278,7 @@ pub trait HyperLogLogCommon {
     }
 
     #[inline] // Estimates the count of distinct elements using linear
-              // counting.
+    // counting.
     fn linear_count(count: usize, zeros: usize) -> f64 {
         count as f64 * ln(count as f64 / zeros as f64)
     }
@@ -285,7 +369,7 @@ mod tests {
 
         registers.set_greater(9, 0x7);
 
-        assert_eq!(registers.buf, vec![0b11000000, 0x07000000]);
+        assert_eq!(registers.buf, vec![0b11000000, 0b01000000]);
     }
 
     #[test]
@@ -344,17 +428,17 @@ mod tests {
 
         registers.set_greater(9, 0x7);
 
-        assert_eq!(registers.buf, vec![0b11000000, 0x07000000]);
+        assert_eq!(registers.buf, vec![0b11000000, 0b01000000]);
         assert_eq!(registers.zeros(), 8);
 
         registers.set_greater(1, 0b10);
 
-        assert_eq!(registers.buf, vec![0b11000000, 0x07000000]);
+        assert_eq!(registers.buf, vec![0b11000000, 0b01000000]);
         assert_eq!(registers.zeros(), 8);
 
         registers.set_greater(9, 0x9);
 
-        assert_eq!(registers.buf, vec![0b11000000, 0x09000000]);
+        assert_eq!(registers.buf, vec![0b11000000, 0b01010000]);
         assert_eq!(registers.zeros(), 8);
     }
 
